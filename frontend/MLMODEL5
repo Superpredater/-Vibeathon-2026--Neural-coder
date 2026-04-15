@@ -1,0 +1,68 @@
+# ================================================
+# CELL 5 — B2B DEAL ML EVALUATOR
+# ================================================
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.model_selection import train_test_split
+import numpy as np
+
+np.random.seed(42)
+X_b2b = np.random.rand(2000, 4) 
+noise = np.random.normal(0, 0.05, 2000)
+y_logic = ((X_b2b[:, 2] > X_b2b[:, 1]) & ((X_b2b[:, 3] + noise) > 0.5)).astype(float)
+y_b2b = y_logic.reshape(-1, 1)
+
+X_train_t = torch.FloatTensor(X_b2b[:1600])
+y_train_t = torch.FloatTensor(y_b2b[:1600])
+
+class B2BDealPredictor(nn.Module):
+    def __init__(self):
+        super(B2BDealPredictor, self).__init__()
+        self.layer1 = nn.Linear(4, 32)
+        self.relu = nn.ReLU()
+        self.layer2 = nn.Linear(32, 16)
+        self.layer3 = nn.Linear(16, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.relu(self.layer1(x))
+        x = self.relu(self.layer2(x))
+        x = self.sigmoid(self.layer3(x))
+        return x
+
+# NAMESPACE ISOLATION APPLIED HERE
+b2b_model = B2BDealPredictor()
+criterion = nn.BCELoss()
+optimizer = optim.Adam(b2b_model.parameters(), lr=0.05)
+
+for epoch in range(20):
+    b2b_model.train()
+    optimizer.zero_grad()
+    loss = criterion(b2b_model(X_train_t), y_train_t)
+    loss.backward()
+    optimizer.step()
+
+class B2BAgent:
+    def __init__(self, trained_model):
+        self.model = trained_model
+
+    def analyze_deal(self, deal_value, current_stock, required_stock, supplier_rating):
+        features = torch.FloatTensor([[deal_value, current_stock, required_stock, supplier_rating]])
+        self.model.eval()
+        with torch.no_grad():
+            prediction = self.model(features).item()
+        decision = "ACCEPT" if prediction > 0.5 else "REJECT"
+        confidence = prediction if decision == "ACCEPT" else 1 - prediction
+        return decision, confidence
+
+    def process_ceo_decision(self, signature_string, action):
+        if not signature_string or len(signature_string.strip()) < 2: return "[ERROR] Invalid signature."
+        if action == "APPROVE": return f"[SUCCESS - APPROVED] Deal legally bound.\nSignature: {signature_string}"
+        elif action == "REJECT": return f"[SUCCESS - REJECTED] Deal officially vetoed.\nSignature: {signature_string}"
+
+# NAMESPACE ISOLATION APPLIED HERE
+b2b_agent = B2BAgent(b2b_model)
+
+print("✅ B2B Backend Ready.")
