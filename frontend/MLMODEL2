@@ -1,0 +1,108 @@
+# ================================================
+# CELL 2 — FINANCIAL MARGIN ML
+# ================================================
+
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.cluster import KMeans
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestRegressor
+from sklearn.model_selection import train_test_split
+import warnings
+warnings.filterwarnings("ignore")
+
+np.random.seed(42)
+
+def generate_user_data(n=5000):
+    data = {
+        "orders_per_month":        np.random.poisson(lam=8, size=n).clip(1, 40),
+        "avg_order_value":         np.random.lognormal(mean=4.2, sigma=0.5, size=n).clip(50, 2000),
+        "avg_basket_size":         np.random.randint(3, 25, size=n),
+        "reorder_rate":            np.random.beta(5, 3, size=n),
+        "cart_abandonment_rate":   np.random.beta(2, 5, size=n),
+        "express_delivery_usage":  np.random.beta(2, 6, size=n),
+        "avg_delivery_time_pref":  np.random.choice([10, 20, 30, 45], n, p=[0.15, 0.45, 0.30, 0.10]),
+        "discount_sensitivity":    np.random.beta(3, 4, size=n),
+        "subscription_history":    np.random.choice([0, 1], n, p=[0.65, 0.35]),
+        "tenure_months":           np.random.randint(1, 48, size=n),
+        "app_sessions_per_week":   np.random.poisson(lam=5, size=n).clip(1, 30),
+        "referral_count":          np.random.poisson(lam=1.2, size=n),
+        "support_tickets":         np.random.poisson(lam=0.4, size=n),
+        "buys_fresh":              np.random.choice([0, 1], n, p=[0.4, 0.6]),
+        "buys_personal_care":      np.random.choice([0, 1], n, p=[0.5, 0.5]),
+        "buys_electronics":        np.random.choice([0, 1], n, p=[0.8, 0.2]),
+        "buys_household":          np.random.choice([0, 1], n, p=[0.45, 0.55]),
+    }
+    df = pd.DataFrame(data)
+    df["monthly_gmv"] = df["orders_per_month"] * df["avg_order_value"]
+
+    conditions = []
+    for _, row in df.iterrows():
+        scores = {
+            "subscription": row["orders_per_month"] * 0.4 + row["reorder_rate"] * 30 + row["subscription_history"] * 20 - row["discount_sensitivity"] * 10,
+            "combo_pack": row["avg_basket_size"] * 0.8 + row["buys_household"] * 10 + row["buys_personal_care"] * 8 - row["cart_abandonment_rate"] * 15,
+            "service_charge": row["express_delivery_usage"] * 40 + (row["avg_delivery_time_pref"] <= 20) * 15 + row["monthly_gmv"] / 500,
+            "loyalty_program": row["tenure_months"] * 0.3 + row["referral_count"] * 5 + row["app_sessions_per_week"] * 1.5,
+        }
+        best = max(scores, key=scores.get)
+        if np.random.rand() < 0.15:
+            best = np.random.choice(list(scores.keys()))
+        conditions.append(best)
+
+    df["best_monetization_channel"] = conditions
+    uplift_map = {"subscription": 18, "combo_pack": 12, "service_charge": 22, "loyalty_program": 8}
+    df["expected_margin_uplift_pct"] = df["best_monetization_channel"].map(uplift_map) + np.random.normal(0, 2, n)
+    return df
+
+SEGMENT_LABELS = {0: "Power Subscribers", 1: "Casual Browsers", 2: "Combo Hunters", 3: "Express Loyalists"}
+
+FEATURE_COLS = [
+    "orders_per_month", "avg_order_value", "avg_basket_size", "reorder_rate",
+    "cart_abandonment_rate", "express_delivery_usage", "avg_delivery_time_pref",
+    "monthly_gmv", "discount_sensitivity", "subscription_history",
+    "tenure_months", "app_sessions_per_week", "referral_count", "support_tickets",
+    "buys_fresh", "buys_personal_care", "buys_electronics", "buys_household", "segment_id",
+]
+
+# Run training globally so linking server can access variables
+df_margin = generate_user_data(n=5000)
+
+# K-Means Segmentation
+X_seg = df_margin[["orders_per_month", "avg_order_value", "reorder_rate", "express_delivery_usage", "monthly_gmv", "discount_sensitivity", "app_sessions_per_week", "tenure_months"]].values
+seg_scaler = StandardScaler()
+X_scaled = seg_scaler.fit_transform(X_seg)
+seg_model = KMeans(n_clusters=4, random_state=42, n_init=10)
+df_margin["segment_id"] = seg_model.fit_predict(X_scaled)
+df_margin["segment_name"] = df_margin["segment_id"].map(SEGMENT_LABELS)
+
+# Channel Recommender
+le = LabelEncoder()
+y_clf = le.fit_transform(df_margin["best_monetization_channel"])
+clf = GradientBoostingClassifier(n_estimators=200, learning_rate=0.08, max_depth=4, subsample=0.85, random_state=42)
+clf.fit(df_margin[FEATURE_COLS], y_clf)
+
+# Uplift Predictor
+reg = RandomForestRegressor(n_estimators=150, max_depth=6, random_state=42)
+reg.fit(df_margin[FEATURE_COLS], df_margin["expected_margin_uplift_pct"])
+
+def recommend_strategy(user_profile: dict) -> dict:
+    seg_features = ["orders_per_month", "avg_order_value", "reorder_rate", "express_delivery_usage", "monthly_gmv", "discount_sensitivity", "app_sessions_per_week", "tenure_months"]
+    seg_vec = np.array([[user_profile[f] for f in seg_features]])
+    seg_id = int(seg_model.predict(seg_scaler.transform(seg_vec))[0])
+    user_profile["segment_id"] = seg_id
+
+    X_new = pd.DataFrame([user_profile])[FEATURE_COLS]
+    proba = clf.predict_proba(X_new)[0]
+    channel = le.inverse_transform([clf.predict(X_new)[0]])[0]
+    uplift = float(reg.predict(X_new)[0])
+
+    channel_proba = {le.inverse_transform([i])[0]: round(float(p), 3) for i, p in enumerate(proba)}
+
+    return {
+        "recommended_channel": channel,
+        "channel_probabilities": channel_proba,
+        "expected_margin_uplift_pct": round(uplift, 2),
+        "user_segment": SEGMENT_LABELS.get(seg_id, "Unknown"),
+    }
+
+print("✅ Margin Pipeline Trained and Variables Exposed.")
