@@ -610,29 +610,42 @@ Sequential implementation of the 14-subsystem AQCLI platform in Python (FastAPI)
     - **Property 83: Protected routes redirect unauthenticated users**
     - **Validates: Requirements 34.4**
 
-  - [ ] 17.3 Implement four role-specific signup page components
+  - [ ] 17.3 Implement Registration landing page (separate from Login)
+    - Create `Registration` page component at route `/register` (unauthenticated only; redirect authenticated users to their dashboard)
+    - Render four role cards — Company (Admin), Delivery Department Staff, Delivery Personnel, Financial Department Staff — each with a name and brief description
+    - On role card click: navigate to the corresponding signup route (`/register/company`, `/register/delivery-staff`, `/register/courier`, `/register/finance`) without submitting any data
+    - Display a "Already have an account? Log in" link pointing to `/login`
+    - _Requirements: 37.1, 37.2, 37.3, 37.5, 37.7_
+
+  - [ ] 17.4 Implement four role-specific signup page components
     - Create `SignupCompany`, `SignupDeliveryStaff`, `SignupCourier`, `SignupFinanceStaff` components, each rendering only the fields required for that role
     - Implement client-side validation (required fields, email format, password ≥ 8 chars) with inline error messages
     - Sanitize all user-supplied input before rendering; no raw HTML from API responses injected into DOM
     - _Requirements: 34.1, 34.5, 34.6_
 
-  - [ ] 17.4 Implement shared Login page and role-based redirect
-    - Create `Login` component: single form for all roles; on successful JWT receipt, decode role claim and redirect without additional API call: Company → `/admin`, Delivery Staff → `/delivery`, Courier → `/courier`, Finance → `/finance`
+  - [ ] 17.5 Implement shared Login page and role-based redirect
+    - Create `Login` component: contains only email/password fields + submit button; NO signup fields, NO role selector, NO inline registration flow
+    - Display a "Don't have an account? Register" link pointing to `/register`
+    - On successful JWT receipt, decode role claim and redirect without additional API call: Company → `/admin`, Delivery Staff → `/delivery`, Courier → `/courier`, Finance → `/finance`
     - Clear stored token and redirect to `/login` on JWT expiry
-    - _Requirements: 32.4, 32.6, 34.2_
+    - Authenticated users who visit `/login` are redirected to their role dashboard
+    - _Requirements: 32.4, 32.6, 34.2, 37.4, 37.7_
 
-  - [ ] 17.5 Implement role-specific dashboards and navigation
+  - [ ] 17.6 Implement role-specific dashboards and navigation
     - Create four dashboard components: `AdminDashboard`, `DeliveryDashboard`, `CourierDashboard`, `FinanceDashboard`
     - Each renders only navigation items permitted for that role (per RBAC matrix)
     - Admin Dashboard includes analytics view: total registered users per role, login activity last 7 days, failed login attempts per day
     - _Requirements: 33.2, 33.3, 33.4, 33.5, 34.3, 36.3_
 
-  - [ ]* 17.6 Write frontend tests for role navigation and XSS prevention
+  - [ ]* 17.7 Write frontend tests for registration page, role navigation and XSS prevention
+    - Test Registration landing page: render unauthenticated, assert four role cards visible; assert authenticated user is redirected to dashboard
+    - Test role card navigation: click each role card, assert navigation to correct `/register/<role>` route
+    - Test signup success redirect: mock successful signup API response, assert redirect to `/login` with success message
     - Test role-specific navigation: render nav with each role's JWT, assert only permitted menu items visible
     - Test XSS prevention: inject `<script>` tag via API response mock, assert it is not executed
-    - _Requirements: 34.3, 34.6_
+    - _Requirements: 34.3, 34.6, 37.1, 37.3, 37.5, 37.6_
 
-  - [ ] 17.7 Implement Ops_Dashboard real-time metrics view
+  - [ ] 17.8 Implement Ops_Dashboard real-time metrics view
     - Create `OpsDashboard` component: display active order count, orders-in-pick, orders-in-transit, SLA breach rate, per-store stock health (refreshed ≤ 10 s via polling or WebSocket)
     - Display degraded-mode banner when system is in DEGRADED mode
     - Display manual override controls (assign order to store, assign courier, approve/reject held order)

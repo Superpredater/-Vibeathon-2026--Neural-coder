@@ -818,6 +818,56 @@ SELECT create_hypertable('demand_forecasts', 'time');
 
 ## Security Architecture
 
+### Frontend Route Map
+
+The React frontend uses React Router v6. All unauthenticated routes are public; all dashboard routes are wrapped in `ProtectedRoute`.
+
+```
+/                        → redirect to /login
+/login                   → Login page (email + password only; link to /register)
+/register                → Registration landing page (role selector; unauthenticated only)
+/register/company        → Company (Admin) signup form
+/register/delivery-staff → Delivery Department Staff signup form
+/register/courier        → Delivery Personnel signup form
+/register/finance        → Financial Department Staff signup form
+/admin                   → Admin Dashboard          (requires role: company_admin)
+/delivery                → Delivery Dashboard       (requires role: delivery_staff)
+/courier                 → Courier Dashboard        (requires role: courier)
+/finance                 → Finance Dashboard        (requires role: finance_staff)
+/ops                     → Ops Dashboard            (requires role: company_admin | delivery_staff | finance_staff)
+```
+
+**Registration flow (separate from login):**
+
+```mermaid
+flowchart TD
+    A[User visits /register] --> B[Registration Landing Page\nSelect your role]
+    B --> C1[/register/company]
+    B --> C2[/register/delivery-staff]
+    B --> C3[/register/courier]
+    B --> C4[/register/finance]
+    C1 & C2 & C3 & C4 --> D[Submit signup form]
+    D --> E{Account created?}
+    E -- Yes --> F[Redirect to /login\nwith success message]
+    E -- No --> G[Show field-level errors\nStay on signup page]
+    F --> H[User logs in via /login]
+    H --> I[JWT issued → role-based redirect\nto role dashboard]
+```
+
+**Login page is authentication-only:**
+- Contains only email/password fields + submit button
+- Displays a "Don't have an account? Register" link pointing to `/register`
+- Contains no signup fields, no role selector, no inline registration flow
+- Authenticated users who visit `/login` are redirected to their dashboard
+
+**Registration landing page:**
+- Accessible only to unauthenticated users; authenticated users redirected to their dashboard
+- Displays four role cards with name + description
+- Clicking a role card navigates to the corresponding `/register/<role>` page
+- Displays a "Already have an account? Log in" link pointing to `/login`
+
+---
+
 ### JWT and Authentication Flow
 
 ```mermaid

@@ -37,6 +37,7 @@ This document defines requirements for an Autonomous Quick-Commerce & Logistics 
 - **Auth_Service**: The subsystem responsible for user registration, authentication, JWT issuance, and RBAC middleware enforcement across all platform roles.
 - **JWT**: JSON Web Token — a signed, time-limited token issued at login carrying the user's id and role claim, used to authenticate all subsequent API requests.
 - **RBAC**: Role-Based Access Control — the access model that restricts API and UI capabilities based on the authenticated user's assigned role.
+- **Registration_Page**: The dedicated frontend landing page at `/register` where new users select their role before being routed to the appropriate role-specific signup form.
 
 ---
 
@@ -589,3 +590,19 @@ This document defines requirements for an Autonomous Quick-Commerce & Logistics 
 3. THE Company (Admin) Dashboard SHALL include an analytics view showing: total registered users per role, login activity over the last 7 days, and failed login attempts per day.
 4. THE Audit_Log SHALL record per-role activity events including: login, logout, resource access, data modification, and role-access violations, queryable by role and date range via the Ops_Dashboard.
 5. WHEN any optional enhancement is disabled via the Config_Engine, the corresponding UI elements and API endpoints SHALL be hidden or return a 404; no partial or broken flows SHALL be exposed to users.
+
+---
+
+### Requirement 37: Unified Registration Landing Page
+
+**User Story:** As a new user, I want a single dedicated registration page that lets me choose my role before being taken to the correct signup form, so that I am never confused about where to start and the login page remains focused solely on authentication.
+
+#### Acceptance Criteria
+
+1. THE Frontend SHALL provide a dedicated Registration page at a distinct route (e.g., `/register`) that is completely separate from the Login page (`/login`) and from the individual role signup pages.
+2. THE Registration page SHALL display all four available roles — Company (Admin), Delivery Department Staff, Delivery Personnel, and Financial Department Staff — as clearly labelled, selectable options with a brief description of each role.
+3. WHEN a user selects a role on the Registration page, THE Frontend SHALL navigate to the corresponding role-specific signup page without submitting any data: Company → `/register/company`, Delivery Staff → `/register/delivery-staff`, Courier → `/register/courier`, Finance Staff → `/register/finance`.
+4. THE Login page SHALL NOT contain any signup form fields or inline registration flow; it SHALL only contain the email/username and password fields plus a clearly visible link to the Registration page.
+5. THE Registration page SHALL be accessible to unauthenticated users only; authenticated users who navigate to `/register` SHALL be redirected to their role-specific dashboard.
+6. WHEN a user completes a role-specific signup form and the account is created successfully, THE Frontend SHALL redirect the user to the Login page with a success confirmation message, not to a dashboard, so that the user explicitly logs in after registration.
+7. THE Registration page and all role-specific signup pages SHALL display a link back to the Login page for users who already have an account.
