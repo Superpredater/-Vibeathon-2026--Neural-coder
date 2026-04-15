@@ -2,9 +2,9 @@ import { TrendingUp, TrendingDown, Package, Users, Clock, AlertTriangle } from '
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import SectionHeader from '../../components/dashboard/SectionHeader'
 import StatCard from '../../components/dashboard/StatCard'
+import LineChart from '../../components/dashboard/LineChart'
 import clsx from 'clsx'
 
-// Simulated 7-day order volume data
 const DAILY_ORDERS = [
   { day: 'Mon', orders: 820,  sla: 97.1 },
   { day: 'Tue', orders: 940,  sla: 96.8 },
@@ -14,7 +14,6 @@ const DAILY_ORDERS = [
   { day: 'Sat', orders: 1820, sla: 93.8 },
   { day: 'Sun', orders: 1640, sla: 96.1 },
 ]
-const MAX_ORDERS = Math.max(...DAILY_ORDERS.map(d => d.orders))
 
 const TOP_SKUS = [
   { name: 'Amul Milk 500ml',   sold: 842, revenue: '₹ 33,680', trend: '+12%', up: true },
@@ -54,43 +53,47 @@ export default function AdminAnalyticsPage() {
         <StatCard label="Avg. Delivery Time"  value="11.2m"  icon={<Clock size={18} className="text-sky-600" />}       iconBg="bg-sky-50"     trend={{ value: '0.4m', up: false }} />
       </div>
 
-      {/* Order volume bar chart */}
+      {/* Order volume line chart */}
       <div className="mb-8 rounded-2xl bg-white shadow-card p-6">
-        <h2 className="text-base font-semibold text-slate-900 mb-5">Daily Order Volume (Last 7 Days)</h2>
-        <div className="flex items-end gap-3 h-40">
-          {DAILY_ORDERS.map(d => (
-            <div key={d.day} className="flex-1 flex flex-col items-center gap-1.5">
-              <span className="text-xs font-semibold text-slate-500">{d.orders.toLocaleString()}</span>
-              <div
-                className="w-full rounded-t-lg bg-gradient-to-t from-brand-600 to-brand-400 transition-all duration-500"
-                style={{ height: `${(d.orders / MAX_ORDERS) * 100}%` }}
-              />
-              <span className="text-xs text-slate-400">{d.day}</span>
-            </div>
-          ))}
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Daily Order Volume</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Last 7 days · hover dots for exact values</p>
+          </div>
+          <span className="flex items-center gap-1.5 text-xs font-medium text-brand-600">
+            <span className="inline-block h-2 w-6 rounded-full bg-brand-500" /> Orders
+          </span>
         </div>
+        <LineChart
+          data={DAILY_ORDERS.map(d => ({ label: d.day, value: d.orders }))}
+          color="#6366f1"
+          gradientFrom="rgba(99,102,241,0.15)"
+          gradientTo="rgba(99,102,241,0)"
+          height={220}
+          formatValue={v => v.toLocaleString() + ' orders'}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* SLA trend */}
+        {/* SLA trend line chart */}
         <div className="rounded-2xl bg-white shadow-card p-6">
-          <h2 className="text-base font-semibold text-slate-900 mb-5">SLA Performance (7d)</h2>
-          <div className="space-y-3">
-            {DAILY_ORDERS.map(d => (
-              <div key={d.day} className="flex items-center gap-3">
-                <span className="w-8 text-xs text-slate-400">{d.day}</span>
-                <div className="flex-1 h-2 rounded-full bg-slate-100">
-                  <div
-                    className={clsx('h-2 rounded-full transition-all duration-500', d.sla >= 96 ? 'bg-emerald-500' : d.sla >= 94 ? 'bg-amber-400' : 'bg-red-400')}
-                    style={{ width: `${d.sla}%` }}
-                  />
-                </div>
-                <span className={clsx('text-xs font-semibold w-12 text-right', d.sla >= 96 ? 'text-emerald-600' : d.sla >= 94 ? 'text-amber-600' : 'text-red-500')}>
-                  {d.sla}%
-                </span>
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">SLA Performance</h2>
+              <p className="text-xs text-slate-400 mt-0.5">7-day on-time rate · hover for values</p>
+            </div>
+            <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+              <span className="inline-block h-2 w-6 rounded-full bg-emerald-500" /> On-Time %
+            </span>
           </div>
+          <LineChart
+            data={DAILY_ORDERS.map(d => ({ label: d.day, value: d.sla }))}
+            color="#10b981"
+            gradientFrom="rgba(16,185,129,0.12)"
+            gradientTo="rgba(16,185,129,0)"
+            height={200}
+            formatValue={v => v.toFixed(1) + '%'}
+          />
         </div>
 
         {/* Login activity */}

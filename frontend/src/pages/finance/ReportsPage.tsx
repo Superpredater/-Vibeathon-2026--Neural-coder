@@ -2,7 +2,28 @@ import { Download, TrendingUp, TrendingDown } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import SectionHeader from '../../components/dashboard/SectionHeader'
 import Button from '../../components/ui/Button'
+import LineChart from '../../components/dashboard/LineChart'
 import clsx from 'clsx'
+
+const GMV_TREND = [
+  { label: 'Mon', value: 48000 },
+  { label: 'Tue', value: 52000 },
+  { label: 'Wed', value: 61000 },
+  { label: 'Thu', value: 58000 },
+  { label: 'Fri', value: 74000 },
+  { label: 'Sat', value: 89000 },
+  { label: 'Sun', value: 81000 },
+]
+
+const NET_TREND = [
+  { label: 'Mon', value: 7200 },
+  { label: 'Tue', value: 8100 },
+  { label: 'Wed', value: 9400 },
+  { label: 'Thu', value: 8800 },
+  { label: 'Fri', value: 11200 },
+  { label: 'Sat', value: 13500 },
+  { label: 'Sun', value: 12400 },
+]
 
 const WEEKLY = [
   { week: 'Apr 7–13', gmv: 380000, cogs: 268000, fulfillment: 38000, refunds: 14000, net: 60000 },
@@ -42,6 +63,49 @@ export default function ReportsPage() {
           </Button>
         }
       />
+
+      {/* GMV & Net Revenue line charts — shown first */}
+      <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-2xl bg-white shadow-card p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">GMV Trend</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Last 7 days · hover dots for values</p>
+            </div>
+            <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+              <span className="inline-block h-2 w-6 rounded-full bg-emerald-500" /> GMV
+            </span>
+          </div>
+          <LineChart
+            data={GMV_TREND}
+            color="#10b981"
+            gradientFrom="rgba(16,185,129,0.14)"
+            gradientTo="rgba(16,185,129,0)"
+            height={200}
+            formatValue={v => `₹ ${(v / 1000).toFixed(0)}K`}
+          />
+        </div>
+
+        <div className="rounded-2xl bg-white shadow-card p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Net Revenue Trend</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Last 7 days · hover dots for values</p>
+            </div>
+            <span className="flex items-center gap-1.5 text-xs font-medium text-brand-600">
+              <span className="inline-block h-2 w-6 rounded-full bg-brand-500" /> Net Revenue
+            </span>
+          </div>
+          <LineChart
+            data={NET_TREND}
+            color="#6366f1"
+            gradientFrom="rgba(99,102,241,0.14)"
+            gradientTo="rgba(99,102,241,0)"
+            height={200}
+            formatValue={v => `₹ ${(v / 1000).toFixed(1)}K`}
+          />
+        </div>
+      </div>
 
       {/* Weekly P&L */}
       <div className="mb-8">
