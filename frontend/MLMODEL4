@@ -1,0 +1,116 @@
+# ================================================
+# CELL 4 — DELIVERY DISPATCH LOGIC
+# ================================================
+
+!pip install -q anthropic geopy folium
+
+import math, random, threading, time, json, os
+from datetime import datetime
+from dataclasses import dataclass, field, asdict
+from typing import Optional
+import anthropic
+
+try:
+    from google.colab import userdata
+    ANTHROPIC_API_KEY = userdata.get("ANTHROPIC_API_KEY")
+except Exception:
+    ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+@dataclass
+class DarkStore: id: str; name: str; lat: float; lng: float
+@dataclass
+class Customer: id: str; name: str; lat: float; lng: float; address: str = ""
+@dataclass
+class Agent: id: str; name: str; lat: float; lng: float; status: str = "idle"; current_order: Optional[str] = None; speed_kmh: float = 20.0
+@dataclass
+class Order: id: str; store_id: str; customer_id: str; agent_id: Optional[str] = None; status: str = "pending"; created_at: str = field(default_factory=lambda: datetime.now().isoformat()); sla_minutes: int = 30; eta_minutes: Optional[float] = None; delay_reason: Optional[str] = None
+
+DARK_STORES = {"DS1": DarkStore("DS1", "Koramangala", 12.9352, 77.6245), "DS2": DarkStore("DS2", "Indiranagar", 12.9784, 77.6408)}
+AGENTS = {"A1": Agent("A1", "Ravi", 12.9380, 77.6260), "A2": Agent("A2", "Priya", 12.9800, 77.6420)}
+CUSTOMERS = {"C1": Customer("C1", "Aisha", 12.9300, 77.6200), "C2": Customer("C2", "Vikram", 12.9900, 77.6500)}
+
+ORDERS = {}
+ORDER_COUNTER = {"n": 1000}
+AGENT_LOCK = threading.Lock()
+
+def haversine(lat1, lng1, lat2, lng2):
+    R = 6371
+    dphi, dlam = math.radians(lat2 - lat1), math.radians(lng2 - lng1)
+    a = math.sin(dphi/2)**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(dlam/2)**2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+def find_best_agent(store, customer):
+    idle_agents = [a for a in AGENTS.values() if a.status == "idle"]
+    if not idle_agents: return None, 0.0
+    results = [(a, (haversine(a.lat, a.lng, store.lat, store.lng) + haversine(store.lat, store.lng, customer.lat, customer.lng)) / a.speed_kmh * 60) for a in idle_agents]
+    return min(results, key=lambda x: x[1])
+
+def create_order(store_id, customer_id):
+    ORDER_COUNTER["n"] += 1
+    oid = f"#{ORDER_COUNTER['n']}"
+    store, cust = DARK_STORES.get(store_id), CUSTOMERS.get(customer_id)
+    if not store or not cust: return {"error": "Invalid store or customer"}
+    order = Order(id=oid, store_id=store_id, customer_id=customer_id)
+    ORDERS[oid] = order
+    agent, eta = find_best_agent(store, cust)
+    if agent:
+        order.agent_id, order.status, order.eta_minutes = agent.id, "on_route", round(eta, 1)
+        agent.status, agent.current_order = "on_route", oid
+    return asdict(order) | {"agent_name": agent.name if agent else "Unassigned"}
+
+def flag_order(order_id, flag_type, reason=""):
+    if order_id not in ORDERS: return {"error": "Not found"}
+    order = ORDERS[order_id]
+    order.status, order.delay_reason = flag_type, reason
+    if flag_type == "failed" and order.agent_id:
+        AGENTS[order.agent_id].status, AGENTS[order.agent_id].current_order, order.agent_id = "idle", None, None
+    return {"success": True}
+
+def reassign_order(order_id):
+    if order_id not in ORDERS: return {"success": False, "reason": "Not found"}
+    order = ORDERS[order_id]
+    if order.agent_id: AGENTS[order.agent_id].status, AGENTS[order.agent_id].current_order = "idle", None
+    new_agent, eta = find_best_agent(DARK_STORES[order.store_id], CUSTOMERS[order.customer_id])
+    if not new_agent: return {"success": False, "reason": "No idle agents"}
+    order.agent_id, order.status, order.eta_minutes = new_agent.id, "assigned", round(eta, 1)
+    new_agent.status, new_agent.current_order = "on_route", order_id
+    return {"success": True, "new_agent_name": new_agent.name, "eta_minutes": round(eta, 1)}
+
+def get_dashboard_state():
+    return {
+        "orders": [{"id": o.id, "store": DARK_STORES[o.store_id].name, "customer": CUSTOMERS[o.customer_id].name, "agent": AGENTS[o.agent_id].name if o.agent_id else "—", "status": o.status, "eta": o.eta_minutes, "reason": o.delay_reason} for o in ORDERS.values()],
+        "agents": [{"id": a.id, "name": a.name, "status": a.status, "order": a.current_order} for a in AGENTS.values()],
+        "stats": {"total": len(ORDERS), "on_route": sum(1 for o in ORDERS.values() if o.status == "on_route"), "delayed": sum(1 for o in ORDERS.values() if o.status == "delayed"), "failed": sum(1 for o in ORDERS.values() if o.status == "failed"), "delivered": sum(1 for o in ORDERS.values() if o.status == "delivered"), "idle_agents": sum(1 for a in AGENTS.values() if a.status == "idle")}
+    }
+
+def ai_dispatch(user_message, state):
+    sys_p = "You are a dispatcher. Return ONLY JSON: {\"action\": \"create_order\"|\"flag_order\"|\"reassign\"|\"answer\", \"params\": {...}, \"message\": \"...\"}"
+    try:
+        resp = client.messages.create(model="claude-3-haiku-20240307", max_tokens=200, system=sys_p, messages=[{"role": "user", "content": user_message}])
+        parsed = json.loads(resp.content[0].text)
+        action, params, msg = parsed.get("action"), parsed.get("params", {}), parsed.get("message", "Done")
+        
+        if action == "create_order": create_order(params.get("store_id","DS1"), params.get("customer_id","C1"))
+        elif action == "flag_order": flag_order(params.get("order_id"), params.get("flag_type","delayed"), params.get("reason",""))
+        elif action == "reassign": reassign_order(params.get("order_id"))
+        return msg, get_dashboard_state()
+    except:
+        return "AI error. Ensure Anthropic API key is set.", state
+
+def _background_refresh():
+    while True:
+        time.sleep(5)
+        with AGENT_LOCK:
+            for a in AGENTS.values():
+                if a.status == "on_route" and a.current_order:
+                    o = ORDERS.get(a.current_order)
+                    if o and o.status == "on_route":
+                        c = CUSTOMERS[o.customer_id]
+                        a.lat += (c.lat - a.lat) * 0.2; a.lng += (c.lng - a.lng) * 0.2
+                        if haversine(a.lat, a.lng, c.lat, c.lng) < 0.1:
+                            o.status, a.status, a.current_order = "delivered", "idle", None
+threading.Thread(target=_background_refresh, daemon=True).start()
+
+print("✅ Delivery Backend Ready.")
