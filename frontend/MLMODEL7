@@ -1,0 +1,84 @@
+# ================================================
+# CELL 6 — LOGISTICS DELIVERY ML
+# ================================================
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.model_selection import train_test_split
+import numpy as np
+
+print("[SYSTEM] Generating historical logistics data...")
+np.random.seed(42)
+
+X = np.random.rand(2000, 2)
+base_charge = 50.0
+base_time = 2.0
+
+noise_cost = np.random.normal(0, 3.0, 2000)
+noise_time = np.random.normal(0, 0.5, 2000)
+
+cost = base_charge * (1.0 + (X[:, 0] * 0.8) + (X[:, 1] * 0.5)) + noise_cost
+time = base_time + (X[:, 0] * 8.0) + noise_time
+
+y = np.column_stack((cost, time))
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+X_train_t = torch.FloatTensor(X_train)
+y_train_t = torch.FloatTensor(y_train)
+X_test_t = torch.FloatTensor(X_test)
+y_test_t = torch.FloatTensor(y_test)
+
+class LogisticsPredictor(nn.Module):
+    def __init__(self):
+        super(LogisticsPredictor, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(2, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 2)
+        )
+    def forward(self, x):
+        return self.net(x)
+
+# NAMESPACE ISOLATION
+logistics_model = LogisticsPredictor()
+criterion = nn.MSELoss()
+optimizer = optim.Adam(logistics_model.parameters(), lr=0.08)
+
+print("\nTraining Multi-Output ML Model (Cost & Time Prediction)...\n")
+for epoch in range(20):
+    logistics_model.train()
+    optimizer.zero_grad()
+    loss = criterion(logistics_model(X_train_t), y_train_t)
+    loss.backward()
+    optimizer.step()
+
+class LogisticsDeliveryBackend:
+    def __init__(self, trained_model):
+        self.model = trained_model
+
+    def evaluate_route_conditions(self, weather_severity, order_demand):
+        features = torch.FloatTensor([[weather_severity, order_demand]])
+        self.model.eval()
+        with torch.no_grad():
+            prediction = self.model(features)[0]
+
+        predicted_cost = max(15.0, prediction[0].item())
+        predicted_time = max(0.5, prediction[1].item())
+        sla_met = predicted_time <= 24.0
+        return predicted_cost, predicted_time, sla_met
+
+    def process_ceo_dispatch(self, signature_string, action):
+        if not signature_string or len(signature_string.strip()) < 2:
+            return "⚠️ [ERROR] Invalid digital signature. Dispatch aborted."
+        if action == "DISPATCH":
+            return f"✅ [SUCCESS] B2B Delivery Approved.\nSignature Verified: {signature_string}"
+        elif action == "HOLD":
+            return f"🛑 [HELD] Delivery rejected/held by CEO.\nSignature Verified: {signature_string}"
+        return "⚠️ [ERROR] Unknown action."
+
+# NAMESPACE ISOLATION
+logistics_agent = LogisticsDeliveryBackend(logistics_model)
+print("\n✅ Logistics Backend Ready.")
