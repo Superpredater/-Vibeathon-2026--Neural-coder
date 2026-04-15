@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
 import { useModal } from '../../hooks/useModal'
 import { LEDGER_ENTRIES, type LedgerEntry } from '../../data/financeData'
+import { useData } from '../../context/DataContext'
 import clsx from 'clsx'
 
 const ACCOUNT_LABELS: Record<string, string> = {
@@ -50,7 +51,10 @@ function exportCSV(entries: LedgerEntry[]) {
 }
 
 export default function LedgerPage() {
-  const [entries, setEntries] = useState<LedgerEntry[]>(LEDGER_ENTRIES)
+  const { ledger: backendLedger, addLedgerEntry, loading: dataLoading } = useData()
+  // Use backend data if available, fall back to static seed
+  const [localEntries, setLocalEntries] = useState<LedgerEntry[]>(LEDGER_ENTRIES)
+  const entries: any[] = backendLedger.length > 0 ? backendLedger : localEntries
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<'all' | 'debit' | 'credit'>('all')
   const addModal = useModal()
@@ -89,29 +93,37 @@ export default function LedgerPage() {
   function handleAdd() {
     if (!validate()) return
     setLoading(true)
-    setTimeout(() => {
-      const now = new Date()
-      const newEntry: LedgerEntry = {
-        id:          `LE-${String(entries.length + 1).padStart(3, '0')}`,
-        type:        form.type,
-        account:     form.account,
-        description: form.description.trim(),
-        orderId:     form.orderId.trim() || '—',
-        store:       form.store,
-        amount:      Number(form.amount),
-        currency:    '₹',
-        date:        now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-        time:        now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    setTimeout(async () => {
+      try {
+        await addLedgerEntry({
+          type:        form.type,
+          account:     form.account,
+          description: form.description.trim(),
+          order_id:    form.orderId.trim() || '—',
+          store:       form.store,
+          amount:      Number(form.amount),
+        })
+      } catch {
+        // backend unavailable — add locally
+        const now = new Date()
+        const newEntry: LedgerEntry = {
+          id:          `LE-${String(localEntries.length + 1).padStart(3, '0')}`,
+          type:        form.type as 'credit' | 'debit',
+          account:     form.account,
+          description: form.description.trim(),
+          orderId:     form.orderId.trim() || '—',
+          store:       form.store,
+          amount:      Number(form.amount),
+          currency:    '₹',
+          date:        now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+          time:        now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        }
+        setLocalEntries(prev => [newEntry, ...prev])
       }
-      setEntries(prev => [newEntry, ...prev])
       setLoading(false)
       setAddDone(true)
-      setTimeout(() => {
-        setAddDone(false)
-        addModal.closeModal()
-        setForm(EMPTY)
-      }, 1500)
-    }, 800)
+      setTimeout(() => { setAddDone(false); addModal.closeModal(); setForm(EMPTY) }, 1500)
+    }, 600)
   }
 
   const inputCls = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all'

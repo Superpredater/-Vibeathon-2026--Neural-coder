@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { DataProvider } from './context/DataContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 
 // Auth pages
@@ -42,6 +43,7 @@ import PerformancePage from './pages/courier/PerformancePage'
 export default function App() {
   return (
     <AuthProvider>
+      <DataProvider>
       <Routes>
         {/* Public */}
         <Route path="/" element={<Navigate to="/login" replace />} />
@@ -135,6 +137,7 @@ export default function App() {
         {/* 404 */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </DataProvider>
     </AuthProvider>
   )
 }

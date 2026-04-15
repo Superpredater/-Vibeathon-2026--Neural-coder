@@ -4,6 +4,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout'
 import StatCard from '../../components/dashboard/StatCard'
 import SectionHeader from '../../components/dashboard/SectionHeader'
 import { useAuth } from '../../context/AuthContext'
+import { useData } from '../../context/DataContext'
 
 const QUICK_LINKS = [
   { label: 'Manage Users',    sub: 'View, invite, and manage all platform users', to: '/admin/users',     color: 'from-violet-500 to-brand-600' },
@@ -15,6 +16,11 @@ const QUICK_LINKS = [
 export default function AdminDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { stats } = useData()
+
+  const activeOrders = stats?.active_orders ?? '—'
+  const totalUsers   = stats?.total_users   ?? '—'
+  const delayed      = stats?.delayed_orders ?? '—'
 
   return (
     <DashboardLayout>
@@ -25,10 +31,10 @@ export default function AdminDashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        <StatCard label="Active Orders"  value="1,284" icon={<Package size={18} className="text-brand-600" />}   iconBg="bg-brand-50"   trend={{ value: '12%', up: true }} />
-        <StatCard label="Total Users"    value="48"    icon={<Users size={18} className="text-violet-600" />}    iconBg="bg-violet-50"  trend={{ value: '3', up: true }} />
-        <StatCard label="On-Time Rate"   value="97.2%" icon={<TrendingUp size={18} className="text-emerald-600" />} iconBg="bg-emerald-50" trend={{ value: '1.1%', up: true }} />
-        <StatCard label="SLA Breaches"   value="9"     icon={<AlertTriangle size={18} className="text-red-500" />}  iconBg="bg-red-50"     trend={{ value: '4', up: false }} />
+        <StatCard label="Active Orders"  value={activeOrders} icon={<Package size={18} className="text-brand-600" />}   iconBg="bg-brand-50" />
+        <StatCard label="Total Users"    value={totalUsers}   icon={<Users size={18} className="text-violet-600" />}    iconBg="bg-violet-50" />
+        <StatCard label="On-Time Rate"   value="97.2%" icon={<TrendingUp size={18} className="text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard label="SLA Breaches"   value={delayed}     icon={<AlertTriangle size={18} className="text-red-500" />}  iconBg="bg-red-50" />
       </div>
 
       {/* Quick navigation cards */}

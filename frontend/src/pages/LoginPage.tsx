@@ -7,6 +7,7 @@ import AuthCard from '../components/ui/AuthCard'
 import { useAuth } from '../context/AuthContext'
 import { ROLE_ROUTES } from '../hooks/useRoleRedirect'
 import { DEMO_USERS, findDemoUser, makeFakeJwt } from '../data/demoUsers'
+import { api } from '../api/client'
 import clsx from 'clsx'
 
 interface FormState { email: string; password: string; remember: boolean }
@@ -57,14 +58,24 @@ export default function LoginPage() {
     setErrors({})
     setLoading(true)
     await new Promise(r => setTimeout(r, 900))
-    const demoUser = findDemoUser(form.email, form.password)
-    if (!demoUser) {
-      setErrors({ general: 'Invalid email or password. Try a demo account below.' })
-      setLoading(false)
-      return
+    // Try real backend first, fall back to demo JWT
+    try {
+      const { access_token } = await api.login(form.email, form.password)
+      login(access_token)
+      // decode role from JWT
+      const payload = JSON.parse(atob(access_token.split('.')[1]))
+      navigate(ROLE_ROUTES[payload.role as keyof typeof ROLE_ROUTES] ?? '/login', { replace: true })
+    } catch {
+      // Fall back to demo credentials
+      const demoUser = findDemoUser(form.email, form.password)
+      if (!demoUser) {
+        setErrors({ general: 'Invalid email or password. Try a demo account below.' })
+        setLoading(false)
+        return
+      }
+      login(makeFakeJwt(demoUser))
+      navigate(ROLE_ROUTES[demoUser.role], { replace: true })
     }
-    login(makeFakeJwt(demoUser))
-    navigate(ROLE_ROUTES[demoUser.role], { replace: true })
     setLoading(false)
   }
 
