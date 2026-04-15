@@ -28,10 +28,10 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { label: 'My Performance', to: '/courier/performance', icon: <BarChart3 size={18} /> },
   ],
   finance_staff: [
-    { label: 'Dashboard', to: '/finance', icon: <LayoutDashboard size={18} /> },
-    { label: 'Ledger', to: '/finance/ledger', icon: <DollarSign size={18} /> },
-    { label: 'Invoices', to: '/finance/invoices', icon: <Package size={18} /> },
-    { label: 'Reports', to: '/finance/reports', icon: <BarChart3 size={18} /> },
+    { label: 'Dashboard', to: '/finance',          icon: <LayoutDashboard size={18} /> },
+    { label: 'Ledger',    to: '/finance/ledger',   icon: <DollarSign size={18} /> },
+    { label: 'Invoices',  to: '/finance/invoices', icon: <Package size={18} /> },
+    { label: 'Reports',   to: '/finance/reports',  icon: <BarChart3 size={18} /> },
   ],
 }
 

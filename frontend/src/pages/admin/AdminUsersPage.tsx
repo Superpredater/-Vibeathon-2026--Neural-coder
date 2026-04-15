@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Search, UserPlus, MoreHorizontal, Shield, Truck, DollarSign, Building2 } from 'lucide-react'
+import { Search, UserPlus, MoreHorizontal, Shield, Truck, DollarSign, Building2, CheckCircle } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import SectionHeader from '../../components/dashboard/SectionHeader'
 import Button from '../../components/ui/Button'
 import StatusBadge from '../../components/dashboard/StatusBadge'
+import Modal from '../../components/ui/Modal'
+import { useModal } from '../../hooks/useModal'
 import clsx from 'clsx'
 
 const ALL_USERS = [
@@ -29,6 +31,18 @@ const ROLE_FILTERS = ['All', 'company_admin', 'delivery_staff', 'courier', 'fina
 export default function AdminUsersPage() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('All')
+  const inviteModal = useModal()
+  const [inviteForm, setInviteForm] = useState({ name: '', email: '', role: '' })
+  const [inviteDone, setInviteDone] = useState(false)
+
+  const inputCls = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all'
+  const labelCls = 'block text-sm font-medium text-slate-700 mb-1.5'
+
+  function handleInvite() {
+    if (!inviteForm.email || !inviteForm.role) return
+    setInviteDone(true)
+    setTimeout(() => { setInviteDone(false); inviteModal.closeModal(); setInviteForm({ name: '', email: '', role: '' }) }, 1800)
+  }
 
   const filtered = ALL_USERS.filter(u => {
     const matchRole = roleFilter === 'All' || u.role === roleFilter
@@ -45,12 +59,13 @@ export default function AdminUsersPage() {
   }
 
   return (
+    <>
     <DashboardLayout>
       <SectionHeader
         title="User Management"
         subtitle="Manage all platform users across every role."
         action={
-          <Button variant="primary">
+          <Button variant="primary" onClick={inviteModal.openModal}>
             <UserPlus size={15} /> Invite User
           </Button>
         }
@@ -148,5 +163,58 @@ export default function AdminUsersPage() {
         </table>
       </div>
     </DashboardLayout>
+
+    {/* Invite User Modal */}
+    <Modal
+      open={inviteModal.open}
+      minimized={inviteModal.minimized}
+      title="Invite User"
+      subtitle="Send an invitation to a new platform user."
+      onClose={() => { inviteModal.closeModal(); setInviteDone(false) }}
+      onMinimize={inviteModal.toggleMinimize}
+      footer={
+        inviteDone ? null : (
+          <>
+            <Button variant="secondary" onClick={inviteModal.closeModal}>Cancel</Button>
+            <Button variant="primary" onClick={handleInvite}>Send Invitation</Button>
+          </>
+        )
+      }
+    >
+      {inviteDone ? (
+        <div className="flex flex-col items-center gap-3 py-4 animate-fade-in">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle size={24} className="text-emerald-600" />
+          </div>
+          <p className="font-semibold text-slate-900">Invitation sent!</p>
+          <p className="text-sm text-slate-500">An email has been sent to <strong>{inviteForm.email}</strong>.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <label className={labelCls}>Full Name</label>
+            <input className={inputCls} placeholder="Jane Smith" value={inviteForm.name} onChange={e => setInviteForm(f => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div>
+            <label className={labelCls}>Email Address <span className="text-red-400">*</span></label>
+            <input type="email" className={inputCls} placeholder="jane@company.com" value={inviteForm.email} onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))} />
+          </div>
+          <div>
+            <label className={labelCls}>Role <span className="text-red-400">*</span></label>
+            <select className={inputCls} value={inviteForm.role} onChange={e => setInviteForm(f => ({ ...f, role: e.target.value }))}>
+              <option value="">Select a role…</option>
+              <option value="company_admin">Company Admin</option>
+              <option value="delivery_staff">Delivery Staff</option>
+              <option value="courier">Courier</option>
+              <option value="finance_staff">Finance Staff</option>
+            </select>
+          </div>
+          {(!inviteForm.email || !inviteForm.role) && (
+            <p className="text-xs text-amber-600">* Email and Role are required.</p>
+          )}
+        </div>
+      )}
+    </Modal>
+    </>
   )
 }

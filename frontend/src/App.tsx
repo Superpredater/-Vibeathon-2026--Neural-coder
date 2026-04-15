@@ -26,6 +26,11 @@ import AdminUsersPage from './pages/admin/AdminUsersPage'
 import AdminOrdersPage from './pages/admin/AdminOrdersPage'
 import AdminAnalyticsPage from './pages/admin/AdminAnalyticsPage'
 
+// Finance sub-pages
+import LedgerPage from './pages/finance/LedgerPage'
+import InvoicesPage from './pages/finance/InvoicesPage'
+import ReportsPage from './pages/finance/ReportsPage'
+
 export default function App() {
   return (
     <AuthProvider>
@@ -73,9 +78,24 @@ export default function App() {
             <CourierDashboard />
           </ProtectedRoute>
         } />
-        <Route path="/finance/*" element={
+        <Route path="/finance" element={
           <ProtectedRoute allowedRoles={['finance_staff']}>
             <FinanceDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/finance/ledger" element={
+          <ProtectedRoute allowedRoles={['finance_staff']}>
+            <LedgerPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/finance/invoices" element={
+          <ProtectedRoute allowedRoles={['finance_staff']}>
+            <InvoicesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/finance/reports" element={
+          <ProtectedRoute allowedRoles={['finance_staff']}>
+            <ReportsPage />
           </ProtectedRoute>
         } />
         <Route path="/ops" element={
