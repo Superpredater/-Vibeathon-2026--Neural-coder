@@ -1,0 +1,108 @@
+# ================================================
+# CELL 3 — AGENTIC HIRING ML
+# ================================================
+
+!pip install -q scikit-learn xgboost shap imbalanced-learn
+
+import numpy as np
+import pandas as pd
+import random
+from datetime import datetime, timedelta
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from xgboost import XGBRegressor
+
+np.random.seed(42)
+random.seed(42)
+
+def generate_dataset(n_days=730):
+    base_date = datetime(2023, 1, 1)
+    records = []
+    for i in range(n_days):
+        d = base_date + timedelta(days=i)
+        dow, month, day_of_yr = d.weekday(), d.month, d.timetuple().tm_yday
+        base_orders = 150
+        weekly_factor = 1.35 if dow in [5, 6] else 0.85 if dow == 0 else 1.00
+        monthly_factor = 1.0 + 0.04 * np.sin(2 * np.pi * month / 12) + (0.20 if month in [10, 11, 12] else 0)
+        holiday = int(day_of_yr in [304, 359, 1, 365])
+        temp_celsius = 20 + 10 * np.sin(2 * np.pi * day_of_yr / 365) + np.random.normal(0, 3)
+        weather_factor = 1.0 + max(0, (temp_celsius - 30) * 0.01)
+        promo = int(random.random() < 0.15)
+        orders = int(base_orders * weekly_factor * monthly_factor * (1.4 if holiday else 1.0) * weather_factor * (1.25 if promo else 1.0) + np.random.normal(0, 12))
+        orders = max(50, min(orders, 400))
+        workers_available = max(60, min(int(100 + np.random.normal(0, 10)), 140))
+        avg_capacity = 3.0 + np.random.normal(0, 0.3)
+        workers_needed = int(np.ceil(orders / avg_capacity))
+        records.append({
+            "day_of_week": dow, "month": month, "day_of_year": day_of_yr,
+            "is_weekend": int(dow in [5, 6]), "is_holiday": holiday,
+            "temperature_c": round(temp_celsius, 2), "promotion_active": promo,
+            "workers_available": workers_available, "avg_worker_capacity": round(avg_capacity, 2),
+            "actual_orders": orders, "workers_needed": workers_needed,
+        })
+    df = pd.DataFrame(records)
+    df["orders_lag1"] = df["actual_orders"].shift(1).bfill()
+    df["orders_lag7"] = df["actual_orders"].shift(7).bfill()
+    df["orders_roll7"] = df["actual_orders"].rolling(7, min_periods=1).mean().round(2)
+    df["orders_roll14"] = df["actual_orders"].rolling(14, min_periods=1).mean().round(2)
+    return df
+
+df_hiring = generate_dataset()
+FEATURES = ["day_of_week", "month", "day_of_year", "is_weekend", "is_holiday", "temperature_c", "promotion_active", "workers_available", "avg_worker_capacity", "orders_lag1", "orders_lag7", "orders_roll7", "orders_roll14"]
+X_hir = df_hiring[FEATURES]
+yo_hir, yw_hir = df_hiring["actual_orders"], df_hiring["workers_needed"]
+
+scaler = StandardScaler()
+X_hir_s = scaler.fit_transform(X_hir)
+
+xgb_order_model = XGBRegressor(n_estimators=60, max_depth=6, learning_rate=0.05, random_state=42).fit(X_hir_s, yo_hir)
+rf_order_model = RandomForestRegressor(n_estimators=40, max_depth=12, random_state=42).fit(X_hir_s, yo_hir)
+gb_order_model = GradientBoostingRegressor(n_estimators=50, max_depth=5, random_state=42).fit(X_hir_s, yo_hir)
+
+xgb_worker_model = XGBRegressor(n_estimators=60, max_depth=6, random_state=42).fit(X_hir_s, yw_hir)
+rf_worker_model = RandomForestRegressor(n_estimators=40, max_depth=12, random_state=42).fit(X_hir_s, yw_hir)
+
+class AgenticHiringAgent:
+    def __init__(self, order_models, worker_models, scaler, features):
+        self.order_models = order_models
+        self.worker_models = worker_models
+        self.scaler = scaler
+        self.features = features
+
+    def decide(self, scenario: dict) -> dict:
+        row = pd.DataFrame([scenario])[self.features]
+        row_s = self.scaler.transform(row)
+        pred_o = sum(w * m.predict(row_s)[0] for w, m in self.order_models)
+        pred_w = sum(w * m.predict(row_s)[0] for w, m in self.worker_models)
+        
+        predicted_orders = max(1, int(round(pred_o)))
+        predicted_workers = max(1, int(round(pred_w)))
+        safe_workers = int(np.ceil(predicted_workers * 1.10))
+        
+        current_workers = scenario["workers_available"]
+        hiring_gap = max(0, safe_workers - current_workers)
+        
+        effective_util = predicted_orders / max(1, current_workers * scenario["avg_worker_capacity"])
+        burnout_risk = min(1.0, max(0.0, (effective_util - 0.85) * 4))
+        burnout_label = "🔴 HIGH" if burnout_risk > 0.6 else "🟡 MEDIUM" if burnout_risk > 0.3 else "🟢 LOW"
+
+        shifts = []
+        if hiring_gap > 0:
+            if hiring_gap // 5: shifts.append(f"Hire {(hiring_gap // 5) * 5} workers on full-day shifts")
+            if hiring_gap % 5: shifts.append(f"Hire {hiring_gap % 5} workers on peak-hour shifts")
+
+        return {
+            "predicted_orders": predicted_orders, "workers_needed_safe": safe_workers,
+            "current_workers": current_workers, "hiring_gap": hiring_gap,
+            "effective_utilisation": round(effective_util, 3), "burnout_risk_label": burnout_label,
+            "shift_plan": shifts if shifts else ["✅ Current headcount sufficient"],
+            "action": "URGENT_HIRE" if hiring_gap > 20 else "HIRE" if hiring_gap > 0 else "HOLD"
+        }
+
+AGENT = AgenticHiringAgent(
+    [(0.45, xgb_order_model), (0.30, rf_order_model), (0.25, gb_order_model)],
+    [(0.50, xgb_worker_model), (0.50, rf_worker_model)], scaler, FEATURES
+)
+
+print("✅ Hiring Backend Ready.")
