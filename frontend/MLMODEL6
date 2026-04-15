@@ -1,0 +1,76 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+
+# ==========================================
+# 1. AI MODEL TRAINING (Route Risk)
+# ==========================================
+print("[SYSTEM] Training PyTorch Model for Route Risk Analysis...")
+np.random.seed(42)
+X = np.random.rand(1000, 2) # Traffic, Weather
+y = np.clip((X[:, 0] * 0.7) + (X[:, 1] * 0.4) + np.random.normal(0, 0.05, 1000), 0, 1).reshape(-1, 1)
+
+X_t, y_t = torch.FloatTensor(X), torch.FloatTensor(y)
+
+class RiskModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(2, 16), nn.ReLU(), nn.Linear(16, 1), nn.Sigmoid())
+    def forward(self, x): return self.net(x)
+
+model = RiskModel()
+optimizer = optim.Adam(model.parameters(), lr=0.05)
+criterion = nn.MSELoss()
+
+for epoch in range(20):
+    optimizer.zero_grad()
+    loss = criterion(model(X_t), y_t)
+    loss.backward()
+    optimizer.step()
+    if epoch == 19: print(f"[SYSTEM] Training Complete. Final Loss: {loss.item():.4f}")
+
+# ==========================================
+# 2. SMART ROUTING AGENT
+# ==========================================
+class AgenticRouter:
+    def __init__(self, trained_model):
+        self.model = trained_model
+        self.origin = (12.9716, 77.5946)
+        self.dest = (12.9279, 77.6271)
+
+        # Define 3 realistic paths (Waypoints: [Lat, Lon])
+        self.routes = {
+            "Route A (Central Highway)": [self.origin, (12.9560, 77.6050), (12.9400, 77.6150), self.dest],
+            "Route B (West City Detour)": [self.origin, (12.9600, 77.5800), (12.9350, 77.6000), self.dest],
+            "Route C (East Ring Road)": [self.origin, (12.9750, 77.6400), (12.9450, 77.6350), self.dest]
+        }
+
+    def find_compatible_route(self, base_traffic, base_weather):
+        """AI evaluates all routes to find the safest path."""
+        self.model.eval()
+        best_route_name = None
+        best_route_points = []
+        lowest_risk = 999.0
+
+        # Simulate how different roads handle conditions differently
+        route_modifiers = {
+            "Route A (Central Highway)": (base_traffic * 1.5, base_weather * 1.0), # Bad in traffic
+            "Route B (West City Detour)": (base_traffic * 0.8, base_weather * 1.5), # Bad in rain (floods)
+            "Route C (East Ring Road)": (base_traffic * 1.1, base_weather * 0.9)    # Steady but longer
+        }
+
+        with torch.no_grad():
+            for name, (t_mod, w_mod) in route_modifiers.items():
+                t = min(1.0, t_mod)
+                w = min(1.0, w_mod)
+                risk = self.model(torch.FloatTensor([[t, w]])).item()
+
+                if risk < lowest_risk:
+                    lowest_risk = risk
+                    best_route_name = name
+                    best_route_points = self.routes[name]
+
+        return best_route_name, best_route_points, lowest_risk
+
+router_agent = AgenticRouter(model)
