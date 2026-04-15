@@ -1,21 +1,16 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, Zap } from 'lucide-react'
+import { Mail, Lock, Zap, ChevronRight } from 'lucide-react'
 import Input from '../components/ui/Input'
 import Button from '../components/ui/Button'
 import AuthCard from '../components/ui/AuthCard'
+import { useAuth } from '../context/AuthContext'
+import { ROLE_ROUTES } from '../hooks/useRoleRedirect'
+import { DEMO_USERS, findDemoUser, makeFakeJwt } from '../data/demoUsers'
+import clsx from 'clsx'
 
-interface FormState {
-  email: string
-  password: string
-  remember: boolean
-}
-
-interface Errors {
-  email?: string
-  password?: string
-  general?: string
-}
+interface FormState { email: string; password: string; remember: boolean }
+interface Errors { email?: string; password?: string; general?: string }
 
 function validate(form: FormState): Errors {
   const errors: Errors = {}
@@ -28,14 +23,32 @@ function validate(form: FormState): Errors {
   return errors
 }
 
+const ROLE_COLORS: Record<string, string> = {
+  company_admin:  'bg-violet-50 text-violet-700 border-violet-100',
+  delivery_staff: 'bg-sky-50 text-sky-700 border-sky-100',
+  courier:        'bg-emerald-50 text-emerald-700 border-emerald-100',
+  finance_staff:  'bg-amber-50 text-amber-700 border-amber-100',
+}
+
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { login, isAuthenticated, user } = useAuth()
   const [form, setForm] = useState<FormState>({ email: '', password: '', remember: false })
   const [errors, setErrors] = useState<Errors>({})
   const [loading, setLoading] = useState(false)
 
+  if (isAuthenticated && user) {
+    navigate(ROLE_ROUTES[user.role], { replace: true })
+    return null
+  }
+
   const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [key]: key === 'remember' ? e.target.checked : e.target.value }))
+
+  function fillDemo(email: string, password: string) {
+    setForm(f => ({ ...f, email, password }))
+    setErrors({})
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -43,21 +56,21 @@ export default function LoginPage() {
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
     setLoading(true)
-    try {
-      // TODO: replace with real API call
-      await new Promise(r => setTimeout(r, 1200))
-      // On success, decode JWT role and redirect — placeholder goes to /admin
-      navigate('/admin')
-    } catch {
-      setErrors({ general: 'Invalid email or password. Please try again.' })
-    } finally {
+    await new Promise(r => setTimeout(r, 900))
+    const demoUser = findDemoUser(form.email, form.password)
+    if (!demoUser) {
+      setErrors({ general: 'Invalid email or password. Try a demo account below.' })
       setLoading(false)
+      return
     }
+    login(makeFakeJwt(demoUser))
+    navigate(ROLE_ROUTES[demoUser.role], { replace: true })
+    setLoading(false)
   }
 
   return (
     <div className="min-h-screen flex">
-      {/* Left panel — branding */}
+      {/* Left branding panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-brand-600 via-brand-700 to-indigo-900 flex-col justify-between p-12 text-white">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
@@ -75,7 +88,6 @@ export default function LoginPage() {
               The B2B operational backbone for micro-fulfillment centers and 10-minute delivery networks.
             </p>
           </div>
-
           <div className="grid grid-cols-2 gap-4 max-w-sm">
             {[
               { label: 'Orders / min', value: '10,000+' },
@@ -91,14 +103,12 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-sm text-brand-300">
-          © {new Date().getFullYear()} AQCLI. All rights reserved.
-        </p>
+        <p className="text-sm text-brand-300">© {new Date().getFullYear()} AQCLI. All rights reserved.</p>
       </div>
 
-      {/* Right panel — login form */}
+      {/* Right form panel */}
       <div className="flex flex-1 items-center justify-center bg-slate-50 px-4 py-12">
-        <div className="w-full max-w-md space-y-8">
+        <div className="w-full max-w-md space-y-6">
           {/* Mobile logo */}
           <div className="flex items-center gap-2 lg:hidden">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600">
@@ -107,9 +117,36 @@ export default function LoginPage() {
             <span className="font-semibold text-slate-900">AQCLI Platform</span>
           </div>
 
-          <div className="space-y-1">
+          <div>
             <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
-            <p className="text-slate-500 text-sm">Sign in to your account to continue</p>
+            <p className="text-slate-500 text-sm mt-1">Sign in to your account to continue</p>
+          </div>
+
+          {/* Demo accounts panel */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+              Demo accounts — click to fill
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {DEMO_USERS.map(u => (
+                <button
+                  key={u.role}
+                  type="button"
+                  onClick={() => fillDemo(u.email, u.password)}
+                  className={clsx(
+                    'flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all duration-150',
+                    'hover:shadow-sm active:scale-[0.98]',
+                    ROLE_COLORS[u.role]
+                  )}
+                >
+                  <div>
+                    <p className="text-xs font-semibold">{u.label}</p>
+                    <p className="text-xs opacity-70 mt-0.5 truncate max-w-[110px]">{u.email}</p>
+                  </div>
+                  <ChevronRight size={13} className="opacity-50 flex-shrink-0" />
+                </button>
+              ))}
+            </div>
           </div>
 
           <AuthCard>
@@ -173,12 +210,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <Button
-                type="button"
-                variant="secondary"
-                fullWidth
-                onClick={() => navigate('/register')}
-              >
+              <Button type="button" variant="secondary" fullWidth onClick={() => navigate('/register')}>
                 Create an account
               </Button>
             </form>
