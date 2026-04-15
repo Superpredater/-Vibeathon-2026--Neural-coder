@@ -31,6 +31,14 @@ import LedgerPage from './pages/finance/LedgerPage'
 import InvoicesPage from './pages/finance/InvoicesPage'
 import ReportsPage from './pages/finance/ReportsPage'
 
+// Delivery sub-pages
+import DeliveriesPage from './pages/delivery/DeliveriesPage'
+import CouriersPage from './pages/delivery/CouriersPage'
+
+// Courier sub-pages
+import MapPage from './pages/courier/MapPage'
+import PerformancePage from './pages/courier/PerformancePage'
+
 export default function App() {
   return (
     <AuthProvider>
@@ -68,14 +76,34 @@ export default function App() {
             <AdminAnalyticsPage />
           </ProtectedRoute>
         } />
-        <Route path="/delivery/*" element={
+        <Route path="/delivery" element={
           <ProtectedRoute allowedRoles={['delivery_staff']}>
             <DeliveryDashboard />
           </ProtectedRoute>
         } />
-        <Route path="/courier/*" element={
+        <Route path="/delivery/orders" element={
+          <ProtectedRoute allowedRoles={['delivery_staff']}>
+            <DeliveriesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/delivery/couriers" element={
+          <ProtectedRoute allowedRoles={['delivery_staff']}>
+            <CouriersPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/courier" element={
           <ProtectedRoute allowedRoles={['courier']}>
             <CourierDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/courier/map" element={
+          <ProtectedRoute allowedRoles={['courier']}>
+            <MapPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/courier/performance" element={
+          <ProtectedRoute allowedRoles={['courier']}>
+            <PerformancePage />
           </ProtectedRoute>
         } />
         <Route path="/finance" element={

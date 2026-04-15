@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   Zap, LayoutDashboard, Package, Truck, Users, DollarSign,
-  BarChart3, Settings, LogOut, ChevronRight, Bell
+  BarChart3, LogOut, Bell, MapPin
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth, type Role } from '../../context/AuthContext'
@@ -15,16 +15,16 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { label: 'Orders', to: '/admin/orders', icon: <Package size={18} /> },
     { label: 'Analytics', to: '/admin/analytics', icon: <BarChart3 size={18} /> },
     { label: 'Ops Dashboard', to: '/ops', icon: <Truck size={18} /> },
-    { label: 'Settings', to: '/admin/settings', icon: <Settings size={18} /> },
   ],
   delivery_staff: [
-    { label: 'Dashboard', to: '/delivery', icon: <LayoutDashboard size={18} /> },
-    { label: 'Deliveries', to: '/delivery/orders', icon: <Package size={18} /> },
-    { label: 'Couriers', to: '/delivery/couriers', icon: <Truck size={18} /> },
-    { label: 'Ops Dashboard', to: '/ops', icon: <BarChart3 size={18} /> },
+    { label: 'Dashboard',    to: '/delivery',          icon: <LayoutDashboard size={18} /> },
+    { label: 'Deliveries',   to: '/delivery/orders',   icon: <Package size={18} /> },
+    { label: 'Couriers',     to: '/delivery/couriers', icon: <Truck size={18} /> },
+    { label: 'Ops Dashboard',to: '/ops',               icon: <BarChart3 size={18} /> },
   ],
   courier: [
-    { label: 'My Deliveries', to: '/courier', icon: <LayoutDashboard size={18} /> },
+    { label: 'My Deliveries',  to: '/courier',             icon: <LayoutDashboard size={18} /> },
+    { label: 'Delivery Map',   to: '/courier/map',         icon: <MapPin size={18} /> },
     { label: 'My Performance', to: '/courier/performance', icon: <BarChart3 size={18} /> },
   ],
   finance_staff: [
