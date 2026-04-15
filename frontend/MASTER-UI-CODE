@@ -1,0 +1,505 @@
+# ==============================================================================
+# CELL 9 — UNIFIED QUICK COMMERCE OS (ULTIMATE NATIVE ARCHITECTURE)
+# Restored Auth | Restored M1-M6 | Fixed B2B UI | Upgraded PyTorch M7
+# ==============================================================================
+
+!pip install -q gradio pandas numpy plotly folium torch
+
+import gradio as gr
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import folium
+from datetime import datetime
+import pytz
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+try:
+    gr.close_all()
+except:
+    pass
+
+# ==============================================================================
+# 1. CORE DATA & AUTHENTICATION (RESTORED TO ORIGINAL)
+# ==============================================================================
+DB_USERS = {
+    "admin@company.com": {"pwd": "password123", "role": "Company Admin", "name": "Sarah Chen"},
+    "delivery@company.com": {"pwd": "password123", "role": "Delivery Staff", "name": "Raj Patel"},
+    "courier@company.com": {"pwd": "password123", "role": "Courier", "name": "Marcus Johnson"},
+    "finance@company.com": {"pwd": "password123", "role": "Finance Staff", "name": "Emily Wong"}
+}
+
+np.random.seed(42)
+df_users = pd.DataFrame({
+    "User ID": [f"USR-{np.random.randint(1000,9999)}" for _ in range(20)],
+    "Name": ["Alice", "Bob", "Charlie", "David", "Eve", "Frank", "Grace", "Heidi", "Ivan", "Judy", "Mallory", "Niaj", "Olivia", "Peggy", "Sybil", "Trent", "Victor", "Walter", "Xavier", "Yvonne"],
+    "Role": np.random.choice(["Company Admin", "Delivery Staff", "Courier", "Finance Staff"], 20),
+    "Status": np.random.choice(["Active", "Inactive"], 20, p=[0.85, 0.15])
+})
+
+df_orders = pd.DataFrame({
+    "Order ID": [f"ORD-{np.random.randint(10000,99999)}" for _ in range(30)],
+    "Customer": [f"Customer {chr(65+(i%26))}" for i in range(30)],
+    "Amount ($)": np.round(np.random.uniform(15.0, 150.0, 30), 2),
+    "Status": np.random.choice(["Pending", "Picking", "Delivered", "Delayed"], 30, p=[0.15, 0.25, 0.55, 0.05])
+})
+
+def authenticate(email, password):
+    email = str(email).strip() if email else ""
+    password = str(password).strip() if password else ""
+    
+    if not email or not password:
+        return gr.update(visible=True), gr.update(visible=False), "", "", "❌ Please enter email and password."
+    
+    user = DB_USERS.get(email)
+    if user and user["pwd"] == password:
+        prof = f"**{user['name']}**\n*{user['role']}*"
+        dash_w = f"### Welcome back, {user['name']} 👋"
+        return gr.update(visible=False), gr.update(visible=True), prof, dash_w, ""
+    
+    return gr.update(visible=True), gr.update(visible=False), "", "", "❌ Invalid credentials."
+
+def register(name, email, pwd, role):
+    if not name or not email or not pwd: return "❌ All fields are required."
+    clean_email = email.strip()
+    if clean_email in DB_USERS: return "❌ Email already registered."
+    DB_USERS[clean_email] = {"pwd": pwd.strip(), "role": role, "name": name.strip()}
+    return "✅ Account created successfully! Please click the 'Sign In' tab above to log in."
+
+def filter_u(role): return df_users if role == "All Roles" else df_users[df_users["Role"] == role]
+def filter_o(stat): return df_orders if stat == "All Orders" else df_orders[df_orders["Status"] == stat]
+
+def gen_chart():
+    df = pd.DataFrame({"Date": pd.date_range(end=datetime.today(), periods=14), "Volume": np.random.normal(5000, 500, 14)})
+    fig = px.line(df, x="Date", y="Volume", template="plotly_white")
+    fig.update_layout(height=300, margin=dict(l=0,r=0,t=30,b=0), title="14-Day Order Volume Trend", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    fig.update_traces(line_color="#6366f1", line_width=3)
+    return fig
+
+# ==============================================================================
+# 2. UPGRADED AI MODEL 7 (Route Risk)
+# ==============================================================================
+print("[SYSTEM] Training Advanced PyTorch Model for Route Risk Analysis...")
+np.random.seed(42)
+X_route = np.random.rand(1000, 3) # Traffic, Weather, Vehicle Health
+y_route = np.clip((X_route[:, 0] * 0.5) + (X_route[:, 1] * 0.3) - (X_route[:, 2] * 0.2) + np.random.normal(0, 0.05, 1000), 0, 1).reshape(-1, 1)
+
+class AdvancedRiskModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(3, 32), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(32, 16), nn.ReLU(),
+            nn.Linear(16, 1), nn.Sigmoid()
+        )
+    def forward(self, x): return self.net(x)
+
+model_7 = AdvancedRiskModel()
+optimizer_7 = optim.Adam(model_7.parameters(), lr=0.01)
+criterion_7 = nn.MSELoss()
+X_t, y_t = torch.FloatTensor(X_route), torch.FloatTensor(y_route)
+
+for epoch in range(50):
+    optimizer_7.zero_grad()
+    loss = criterion_7(model_7(X_t), y_t)
+    loss.backward()
+    optimizer_7.step()
+
+class AgenticRouter:
+    def __init__(self, trained_model):
+        self.model = trained_model
+        self.origin = (12.9716, 77.5946)
+        self.dest = (12.9279, 77.6271)
+        self.routes = {
+            "Route A (Central Highway)": [self.origin, (12.9560, 77.6050), (12.9400, 77.6150), self.dest],
+            "Route B (West Detour)": [self.origin, (12.9600, 77.5800), (12.9350, 77.6000), self.dest],
+            "Route C (East Ring)": [self.origin, (12.9750, 77.6400), (12.9450, 77.6350), self.dest]
+        }
+
+    def evaluate_routes(self, traffic, weather, vehicle):
+        self.model.eval()
+        results = {}
+        route_modifiers = {
+            "Route A (Central Highway)": (traffic * 1.5, weather * 1.0, vehicle),
+            "Route B (West Detour)": (traffic * 0.8, weather * 1.5, vehicle),
+            "Route C (East Ring)": (traffic * 1.1, weather * 0.9, vehicle)
+        }
+        with torch.no_grad():
+            for name, (t_mod, w_mod, v_mod) in route_modifiers.items():
+                t, w, v = min(1.0, t_mod), min(1.0, w_mod), min(1.0, v_mod)
+                risk = self.model(torch.FloatTensor([[t, w, v]])).item()
+                results[name] = risk
+        
+        best_route = min(results, key=results.get)
+        return best_route, results
+
+router_agent = AgenticRouter(model_7)
+
+def wrap_routing(traffic, weather, vehicle):
+    best_name, risks = router_agent.evaluate_routes(traffic/100, weather/100, vehicle/100)
+    
+    m = folium.Map(location=[12.95, 77.61], zoom_start=13, tiles="CartoDB positron")
+    folium.Marker(router_agent.origin, tooltip="Origin", icon=folium.Icon(color='green', icon='play')).add_to(m)
+    folium.Marker(router_agent.dest, tooltip="Destination", icon=folium.Icon(color='red', icon='stop')).add_to(m)
+    
+    # Plot all routes
+    for name, points in router_agent.routes.items():
+        if name == best_name:
+            folium.PolyLine(points, color="#4f46e5", weight=6, opacity=0.9, tooltip=f"Optimal: {name}").add_to(m)
+        else:
+            folium.PolyLine(points, color="#94a3b8", weight=3, opacity=0.6, dash_array="5, 10", tooltip=f"Suboptimal: {name}").add_to(m)
+    
+    best_risk = risks[best_name]
+    status_color = "#10b981" if best_risk < 0.4 else "#f59e0b" if best_risk < 0.7 else "#ef4444"
+    res_html = f"<div style='padding:15px; border-radius:8px; border-left: 6px solid {status_color}; background:white;'>" \
+               f"<h3 style='margin:0 0 10px 0;'>Optimal Path: {best_name}</h3>" \
+               f"<p style='margin:0;'><b>AI Risk Probability:</b> {best_risk*100:.1f}%</p></div>"
+    
+    return m._repr_html_(), res_html
+
+# ==============================================================================
+# 3. REAL ML WRAPPERS (M1 to M6 - Restored from Original)
+# ==============================================================================
+def wrap_demand(uc, mh, dn, ti, ri, zi):
+    h, d = (datetime.now(pytz.timezone('Asia/Kolkata')).hour, datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%A')) if uc else (mh, dn)
+    res = demand_agent.predict(h, d, ti, ri, zi)
+    out = "\n\n".join([f"**{k}**: {v['predicted']} units → {v['action']}" for k, v in res["results"].items()])
+    return out, res["thinking"], f"{res['confidence']}%"
+
+def wrap_margin(op, ao, ab, rr, ca, eu, at, ds, sh, tm, as_, rc, st, bf, bp, be, bh):
+    prof = {"orders_per_month": op, "avg_order_value": ao, "avg_basket_size": ab, "reorder_rate": rr, "cart_abandonment_rate": ca, "express_delivery_usage": eu, "avg_delivery_time_pref": int(at), "monthly_gmv": op * ao, "discount_sensitivity": ds, "subscription_history": 1 if sh == "Y" else 0, "tenure_months": tm, "app_sessions_per_week": as_, "referral_count": rc, "support_tickets": st, "buys_fresh": 1 if bf else 0, "buys_personal_care": 1 if bp else 0, "buys_electronics": 1 if be else 0, "buys_household": 1 if bh else 0}
+    res = recommend_strategy(prof)
+    return res['user_segment'], res['recommended_channel'].replace("_", " ").title(), f"{res['expected_margin_uplift_pct']}%", res['channel_probabilities']
+
+def wrap_hiring(hd, hw, hc, ht, hp, hl1, hl7, hr7, hr14):
+    d = datetime.strptime(hd, "%Y-%m-%d")
+    scen = {"day_of_week": d.weekday(), "month": d.month, "day_of_year": d.timetuple().tm_yday, "is_weekend": int(d.weekday() in [5,6]), "is_holiday": 0, "temperature_c": ht, "promotion_active": int(hp), "workers_available": hw, "avg_worker_capacity": hc, "orders_lag1": hl1, "orders_lag7": hl7, "orders_roll7": hr7, "orders_roll14": hr14}
+    r = AGENT.decide(scen)
+    return f"**Action:** {r['action']}\n**Safe Workers Needed:** {r['workers_needed_safe']}\n**Hiring Gap:** {r['hiring_gap']}\n**Burnout Risk:** {r['burnout_risk_label']}"
+
+def wrap_dispatch(msg, history):
+    st = get_dashboard_state()
+    reply, new_st = ai_dispatch(msg, st)
+    history.append((msg, reply))
+    df_o = pd.DataFrame(new_st["orders"]) if new_st["orders"] else pd.DataFrame(columns=["ID","Store","Customer","Agent","Status","ETA","Reason"])
+    df_a = pd.DataFrame(new_st["agents"]) if new_st["agents"] else pd.DataFrame(columns=["ID","Name","Status","Current Order"])
+    stats = f"**Total:** {new_st['stats']['total']} | **On Route:** {new_st['stats']['on_route']} | **Delivered:** {new_st['stats']['delivered']}"
+    m = folium.Map(location=[12.9400, 77.6500], zoom_start=12, tiles="CartoDB positron")
+    for ds in DARK_STORES.values(): folium.Marker([ds.lat, ds.lng], tooltip=f"🏪 {ds.name}", icon=folium.Icon(color="blue")).add_to(m)
+    for ag in AGENTS.values(): folium.CircleMarker([ag.lat, ag.lng], radius=8, color="#378ADD" if ag.status=="on_route" else "gray", fill=True, tooltip=f"🛵 {ag.name}").add_to(m)
+    for o in ORDERS.values():
+        if o.status in ("on_route", "delayed"):
+            cust, store, ag = CUSTOMERS.get(o.customer_id), DARK_STORES.get(o.store_id), AGENTS.get(o.agent_id)
+            if cust: folium.CircleMarker([cust.lat, cust.lng], radius=6, color="red", tooltip=f"📍 {cust.name}").add_to(m)
+            if ag and store and cust: folium.PolyLine([[ag.lat, ag.lng], [store.lat, store.lng], [cust.lat, cust.lng]], color="blue", weight=2.5, opacity=0.7).add_to(m)
+    return history, "", df_o, df_a, stats, m._repr_html_()
+
+def wrap_b2b(dv, cs, rs, sr):
+    dec, conf = b2b_agent.analyze_deal(dv, cs, rs, sr)
+    # FIXED: Properly unlocking the textbox by supplying a placeholder so it visually updates
+    return f"Recommendation: {dec} ({conf*100:.1f}%)", gr.update(interactive=True, placeholder="Awaiting CEO Signature..."), gr.update(interactive=True), gr.update(interactive=True)
+
+def wrap_b2b_sign(sig, action):
+    res = b2b_agent.process_ceo_decision(sig, action)
+    if "SUCCESS" in res: 
+        return res, gr.update(value="", interactive=False, placeholder="Locked"), gr.update(interactive=False), gr.update(interactive=False)
+    return res, gr.update(), gr.update(), gr.update()
+
+def wrap_logistics(w, d):
+    c, t, sla = logistics_agent.evaluate_route_conditions(w, d)
+    df_map = pd.DataFrame({'lat': [12.9716, 13.0068, 12.9352, 12.9279], 'lon': [77.5946, 77.6200, 77.5360, 77.6271], 'node': ['Warehouse', 'R1', 'R2', 'R3'], 'type': ['Origin', 'Dest', 'Dest', 'Dest'], 'size': [15,10,10,10]})
+    fig_map = px.scatter_mapbox(df_map, lat="lat", lon="lon", hover_name="node", color="type", size="size", zoom=10.5, height=300, mapbox_style="carto-positron")
+    for i in range(1, 4): fig_map.add_trace(go.Scattermapbox(mode="lines", lon=[df_map['lon'][0], df_map['lon'][i]], lat=[df_map['lat'][0], df_map['lat'][i]], line=dict(width=3, color='rgba(0,100,255,0.6)')))
+    fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, showlegend=False, paper_bgcolor='rgba(0,0,0,0)')
+    fig_graph = go.Figure(data=[go.Bar(x=['Base Cost', 'Weather Surge', 'Demand Surge'], y=[50, 50*(w*0.8), 50*(d*0.5)], marker_color=['#10b981', '#3b82f6', '#ef4444'])])
+    fig_graph.update_layout(title=f"Total: ${c:.2f}", height=300, margin=dict(l=0,r=0,t=30,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    txt = f"**ETA:** {t:.1f} Hrs | **SLA Met:** {'✅ Yes' if sla else '🔴 No'}"
+    return fig_map, fig_graph, txt, gr.update(interactive=True), gr.update(interactive=True), gr.update(interactive=True)
+
+def wrap_log_sign(sig, action):
+    res = logistics_agent.process_ceo_dispatch(sig, action)
+    if "SUCCESS" in res or "HELD" in res: return res, gr.update(value="", interactive=False), gr.update(interactive=False), gr.update(interactive=False)
+    return res, gr.update(), gr.update(), gr.update()
+
+# ==============================================================================
+# 4. MASTER UI CONSTRUCTION (Restored Flow + Professional Styling)
+# ==============================================================================
+CSS = """
+.brand-title { font-size: 2.2em; font-weight: 800; color: #6366f1; text-align: center; margin-bottom: 20px; }
+.nav-btn { text-align: left !important; justify-content: flex-start !important; font-weight: 600 !important; border-radius: 8px !important; margin-bottom: 5px; }
+.toolbar-container { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border: 1px solid #e2e8f0; border-radius: 15px; padding: 12px; margin-bottom: 20px; }
+.stat-card { background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; }
+.stat-val { font-size: 26px; font-weight: 800; color: #1e293b; margin: 5px 0; }
+.stat-label { font-size: 13px; color: #64748b; font-weight: 600; }
+"""
+
+with gr.Blocks(css=CSS, theme=gr.themes.Soft(primary_hue="indigo")) as app:
+    
+    # --------------------------------------------------------------------------
+    # STATE 1 & 2: LOGIN / REGISTER GATE (RESTORED EXACTLY)
+    # --------------------------------------------------------------------------
+    with gr.Column(visible=True) as auth_view:
+        gr.Markdown("<div class='brand-title'>⚡ AQCLI Platform</div>")
+        
+        with gr.Row():
+            with gr.Column(scale=1):
+                gr.Markdown("### Power your dark store network")
+                gr.Markdown("The B2B operational backbone for micro-fulfillment centers and 10-minute delivery networks. Secure, agentic, and lightning fast.")
+            
+            with gr.Column(scale=1):
+                with gr.Tabs():
+                    # SIGN IN TAB
+                    with gr.Tab("Sign In"):
+                        gr.Markdown("### Demo Accounts (Click to auto-fill)")
+                        with gr.Row():
+                            btn_adm = gr.Button("Company Admin", size="sm")
+                            btn_del = gr.Button("Delivery Staff", size="sm")
+                        with gr.Row():
+                            btn_cou = gr.Button("Courier", size="sm")
+                            btn_fin = gr.Button("Finance Staff", size="sm")
+                        
+                        l_em = gr.Textbox(label="Email", placeholder="admin@company.com")
+                        l_pw = gr.Textbox(label="Password", type="password")
+                        l_err = gr.Markdown(elem_classes="error-text")
+                        l_btn = gr.Button("Sign In", variant="primary")
+
+                        btn_adm.click(lambda: ("admin@company.com", "password123"), outputs=[l_em, l_pw])
+                        btn_del.click(lambda: ("delivery@company.com", "password123"), outputs=[l_em, l_pw])
+                        btn_cou.click(lambda: ("courier@company.com", "password123"), outputs=[l_em, l_pw])
+                        btn_fin.click(lambda: ("finance@company.com", "password123"), outputs=[l_em, l_pw])
+
+                    # REGISTER TAB
+                    with gr.Tab("Register Account"):
+                        r_nm = gr.Textbox(label="Full Name")
+                        r_em = gr.Textbox(label="Email")
+                        r_pw = gr.Textbox(label="Password", type="password")
+                        r_rl = gr.Dropdown(choices=["Company Admin", "Delivery Staff", "Courier", "Finance Staff"], value="Company Admin", label="Role")
+                        r_btn = gr.Button("Register", variant="primary")
+                        r_msg = gr.Markdown()
+                        r_btn.click(register, [r_nm, r_em, r_pw, r_rl], r_msg)
+
+    # --------------------------------------------------------------------------
+    # STATE 3: MAIN OS DASHBOARD & ROUTING
+    # --------------------------------------------------------------------------
+    with gr.Row(visible=False) as dash_view:
+        
+        # LEFT TOOLBAR
+        with gr.Column(scale=1, variant="panel"):
+            gr.Markdown("### ⚡ OS")
+            n_dash = gr.Button("📊 Dashboard", elem_classes="nav-btn")
+            n_usr = gr.Button("👥 Users", elem_classes="nav-btn")
+            n_ord = gr.Button("📦 Orders", elem_classes="nav-btn")
+            n_ana = gr.Button("📈 Analytics", elem_classes="nav-btn")
+            gr.Markdown("---")
+            prof_ui = gr.Markdown()
+            n_out = gr.Button("Sign Out", variant="stop")
+
+        # MAIN CONTENT AREA
+        with gr.Column(scale=5):
+            
+            # TOP GLASS TOOLBAR (ALL 7 MODELS)
+            with gr.Column(elem_classes="toolbar-container"):
+                with gr.Row():
+                    m_dem = gr.Button("🧠 Demand", size="sm")
+                    m_mar = gr.Button("💰 Margin", size="sm")
+                    m_hir = gr.Button("👷 Hiring", size="sm")
+                    m_dis = gr.Button("🛵 Dispatch", size="sm")
+                    m_b2b = gr.Button("🤝 B2B Deals", size="sm")
+                    m_log = gr.Button("🚚 Logistics", size="sm")
+                    m_rte = gr.Button("📍 Route Risk", size="sm", variant="primary")
+
+            # PAGE CONTAINERS
+            p_dash = gr.Column(visible=True)
+            p_usr = gr.Column(visible=False)
+            p_ord = gr.Column(visible=False)
+            p_ana = gr.Column(visible=False)
+            p_dem = gr.Column(visible=False)
+            p_mar = gr.Column(visible=False)
+            p_hir = gr.Column(visible=False)
+            p_dis = gr.Column(visible=False)
+            p_b2b = gr.Column(visible=False)
+            p_log = gr.Column(visible=False)
+            p_rte = gr.Column(visible=False)
+            
+            ALL_PAGES = [p_dash, p_usr, p_ord, p_ana, p_dem, p_mar, p_hir, p_dis, p_b2b, p_log, p_rte]
+            def route(i): return [gr.update(visible=(idx==i)) for idx in range(len(ALL_PAGES))]
+
+            # --- 0. DASHBOARD ---
+            with p_dash:
+                dash_welcome = gr.Markdown()
+                with gr.Row():
+                    gr.HTML("<div class='stat-card'><div class='stat-label'>ACTIVE ORDERS</div><div class='stat-val'>12,405</div></div>")
+                    gr.HTML("<div class='stat-card'><div class='stat-label'>TOTAL USERS</div><div class='stat-val'>4,892</div></div>")
+                    gr.HTML("<div class='stat-card'><div class='stat-label'>AVG DELIVERY</div><div class='stat-val'>11.2m</div></div>")
+                    gr.HTML("<div class='stat-card'><div class='stat-label'>ON-TIME RATE</div><div class='stat-val'>98.5%</div></div>")
+                gr.Markdown("---")
+                gr.Plot(value=gen_chart())
+
+            # --- 1. USERS ---
+            with p_usr:
+                gr.Markdown("## User Management")
+                with gr.Row():
+                    f_usr = gr.Dropdown(choices=["All Roles", "Company Admin", "Delivery Staff", "Courier", "Finance Staff"], value="All Roles", label="Filter by Role", scale=3)
+                tbl_usr = gr.Dataframe(value=df_users, interactive=False)
+                f_usr.change(filter_u, f_usr, tbl_usr)
+
+            # --- 2. ORDERS ---
+            with p_ord:
+                gr.Markdown("## Order Operations")
+                with gr.Row():
+                    f_ord = gr.Dropdown(choices=["All Orders", "Pending", "Picking", "Delivered", "Delayed"], value="All Orders", label="Filter by Status")
+                tbl_ord = gr.Dataframe(value=df_orders, interactive=False)
+                f_ord.change(filter_o, f_ord, tbl_ord)
+
+            # --- 3. ANALYTICS ---
+            with p_ana:
+                gr.Markdown("## System Analytics")
+                gr.Plot(value=gen_chart())
+
+            # --- ML 1: DEMAND (RESTORED) ---
+            with p_dem:
+                gr.Markdown("## 🧠 Real-Time Demand Agent")
+                with gr.Column(variant="panel"):
+                    with gr.Row():
+                        with gr.Column():
+                            uc = gr.Checkbox(label="Use IST Time")
+                            dh = gr.Slider(0, 23, 18, label="Hour")
+                            dd = gr.Dropdown(choices=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], value="Saturday", label="Day")
+                            dt, dr = gr.Slider(18, 34, 28, label="Temp (°C)"), gr.Slider(0, 45, 8, label="Rain (mm)")
+                            dz = gr.Dropdown(choices=["Whitefield Main", "Hoodi", "Mahadevapura", "KR Puram", "Marathahalli", "Bellandur"], value="Whitefield Main", label="Zone")
+                            db = gr.Button("Predict Demand", variant="primary")
+                        with gr.Column():
+                            do1, do2, do3 = gr.Markdown(label="Predictions"), gr.Textbox(label="Thinking"), gr.Textbox(label="Confidence")
+                db.click(wrap_demand, [uc, dh, dd, dt, dr, dz], [do1, do2, do3])
+
+            # --- ML 2: MARGIN (RESTORED) ---
+            with p_mar:
+                gr.Markdown("## 💰 Margin Optimizer")
+                with gr.Column(variant="panel"):
+                    with gr.Row():
+                        with gr.Column(scale=2):
+                            op, ao, ab = gr.Slider(1,40,8, label="Orders/Mo"), gr.Slider(50,2000,400, label="Avg Order"), gr.Slider(1,30,8, label="Basket Size")
+                            rr, ca, ds = gr.Slider(0,1,0.6, label="Reorder"), gr.Slider(0,1,0.3, label="Abandon"), gr.Slider(0,1,0.5, label="Discount Sens")
+                            eu, at, sh = gr.Slider(0,1,0.2, label="Express"), gr.Dropdown(choices=["10","20","30","45"], value="20", label="Time Pref"), gr.Radio(choices=["Y","N"], value="N", label="Sub?")
+                            tm, as_, rc, st = gr.Number(12, label="Tenure"), gr.Number(5, label="Sessions"), gr.Number(1, label="Referrals"), gr.Number(0, label="Tickets")
+                            bf, bp, be, bh = gr.Checkbox(True, label="Fresh"), gr.Checkbox(False, label="Care"), gr.Checkbox(False, label="Elec"), gr.Checkbox(True, label="House")
+                            mb = gr.Button("Recommend Strategy", variant="primary")
+                        with gr.Column(scale=1):
+                            mo1, mo2, mo3, mo4 = gr.Textbox(label="Segment"), gr.Textbox(label="Channel"), gr.Textbox(label="Uplift"), gr.Label(label="Probs")
+                mb.click(wrap_margin, [op, ao, ab, rr, ca, eu, at, ds, sh, tm, as_, rc, st, bf, bp, be, bh], [mo1, mo2, mo3, mo4])
+
+            # --- ML 3: HIRING (RESTORED) ---
+            with p_hir:
+                gr.Markdown("## 👷 Gig Hiring Engine")
+                with gr.Column(variant="panel"):
+                    with gr.Row():
+                        with gr.Column():
+                            hd, hw, hc = gr.Textbox("2024-11-15", label="Date"), gr.Slider(20,300,100, label="Workers"), gr.Slider(1,8,3, label="Capacity")
+                            ht, hp = gr.Slider(-5,48,28, label="Temp"), gr.Checkbox(label="Promo")
+                            hl1, hl7, hr7, hr14 = gr.Number(190, label="Lag1"), gr.Number(175, label="Lag7"), gr.Number(180, label="Roll7"), gr.Number(172, label="Roll14")
+                            hb = gr.Button("Run Hiring Agent", variant="primary")
+                        with gr.Column():
+                            ho = gr.Markdown()
+                hb.click(wrap_hiring, [hd, hw, hc, ht, hp, hl1, hl7, hr7, hr14], ho)
+
+            # --- ML 4: DISPATCH (RESTORED) ---
+            with p_dis:
+                gr.Markdown("## 🛵 Last-Mile Dispatcher")
+                with gr.Column(variant="panel"):
+                    with gr.Row():
+                        with gr.Column():
+                            di_map = gr.HTML("Send command to generate map")
+                            di_sts = gr.Markdown("Send command to load stats")
+                        with gr.Column():
+                            di_ord = gr.Dataframe(label="Live Orders")
+                            di_agt = gr.Dataframe(label="Live Agents")
+                            di_bot = gr.Chatbot(label="AI Dispatcher", height=250)
+                            di_cmd = gr.Textbox(label="Command", placeholder="e.g. Create an order from DS1 to C1")
+                            di_btn = gr.Button("Send Command", variant="primary")
+                    di_btn.click(wrap_dispatch, [di_cmd, di_bot], [di_bot, di_cmd, di_ord, di_agt, di_sts, di_map])
+
+            # --- ML 5: B2B (RESTORED & FIXED) ---
+            with p_b2b:
+                gr.Markdown("## 🤝 B2B Deal Evaluator")
+                with gr.Column(variant="panel"):
+                    with gr.Row():
+                        with gr.Column():
+                            b_dv, b_cs, b_rs, b_sr = gr.Slider(0,1,0.5, label="Deal"), gr.Slider(0,1,0.2, label="Stock"), gr.Slider(0,1,0.8, label="Req"), gr.Slider(0,1,0.9, label="Supplier")
+                            b_eval = gr.Button("Analyze Deal", variant="primary")
+                        with gr.Column():
+                            b_res = gr.Textbox(label="Agent Recommendation")
+                    gr.Markdown("---")
+                    with gr.Row():
+                        # Crucial Fix: ensuring interactive flows allow typing
+                        b_sig = gr.Textbox(label="Digital Signature", interactive=False) 
+                        with gr.Row():
+                            b_app = gr.Button("Approve", interactive=False, variant="primary")
+                            b_rej = gr.Button("Reject", interactive=False, variant="stop")
+                    b_log = gr.Textbox(label="Action Log", interactive=False)
+                
+                b_eval.click(wrap_b2b, [b_dv, b_cs, b_rs, b_sr], [b_res, b_sig, b_app, b_rej])
+                b_app.click(lambda s: wrap_b2b_sign(s, "APPROVE"), b_sig, [b_log, b_sig, b_app, b_rej])
+                b_rej.click(lambda s: wrap_b2b_sign(s, "REJECT"), b_sig, [b_log, b_sig, b_app, b_rej])
+
+            # --- ML 6: LOGISTICS (RESTORED) ---
+            with p_log:
+                gr.Markdown("## 🚚 Logistics & Surge")
+                with gr.Column(variant="panel"):
+                    with gr.Row():
+                        with gr.Column():
+                            l_ws, l_od = gr.Slider(0,1,0.2, label="Weather Severity"), gr.Slider(0,1,0.6, label="Order Demand")
+                            l_btn_calc = gr.Button("Calculate Route", variant="primary")
+                            l_res = gr.Markdown("### Awaiting...")
+                        with gr.Column():
+                            l_map = gr.Plot()
+                    with gr.Row():
+                        with gr.Column():
+                            l_grp = gr.Plot()
+                        with gr.Column():
+                            l_sig = gr.Textbox(label="CEO Signature", interactive=False)
+                            with gr.Row():
+                                l_app = gr.Button("Dispatch", interactive=False, variant="primary")
+                                l_rej = gr.Button("Hold", interactive=False, variant="stop")
+                            l_log = gr.Textbox(label="Log", interactive=False)
+                l_btn_calc.click(wrap_logistics, [l_ws, l_od], [l_map, l_grp, l_res, l_sig, l_app, l_rej])
+                l_app.click(lambda s: wrap_log_sign(s, "DISPATCH"), l_sig, [l_log, l_sig, l_app, l_rej])
+                l_rej.click(lambda s: wrap_log_sign(s, "HOLD"), l_sig, [l_log, l_sig, l_app, l_rej])
+
+            # --- ML 7: ROUTE RISK (UPGRADED) ---
+            with p_rte:
+                gr.Markdown("## 📍 Model 7: Route Risk Agent")
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        r_traf = gr.Slider(0, 100, 65, label="Traffic Density (%)")
+                        r_weath = gr.Slider(0, 100, 30, label="Weather Severity (%)")
+                        r_vehic = gr.Slider(0, 100, 90, label="Vehicle Health (%)")
+                        r_btn = gr.Button("Analyze Route Risk", variant="primary")
+                        r_info = gr.HTML()
+                    with gr.Column(scale=2):
+                        r_map = gr.HTML("<div style='height:400px; background:#f8fafc; display:flex; align-items:center; justify-content:center; border: 1px dashed #cbd5e1; border-radius:10px;'>Ready for analysis</div>")
+                r_btn.click(wrap_routing, [r_traf, r_weath, r_vehic], [r_map, r_info])
+
+    # ==============================================================================
+    # 5. EVENT WIRING
+    # ==============================================================================
+    # Auth
+    l_btn.click(authenticate, [l_em, l_pw], [auth_view, dash_view, prof_ui, dash_welcome, l_err])
+    n_out.click(lambda: (gr.update(visible=True), gr.update(visible=False), "", "", ""), None, [auth_view, dash_view, l_em, l_pw, l_err])
+    
+    # Navigation Route Logic
+    n_dash.click(lambda: route(0), None, ALL_PAGES)
+    n_usr.click(lambda: route(1), None, ALL_PAGES)
+    n_ord.click(lambda: route(2), None, ALL_PAGES)
+    n_ana.click(lambda: route(3), None, ALL_PAGES)
+    m_dem.click(lambda: route(4), None, ALL_PAGES)
+    m_mar.click(lambda: route(5), None, ALL_PAGES)
+    m_hir.click(lambda: route(6), None, ALL_PAGES)
+    m_dis.click(lambda: route(7), None, ALL_PAGES)
+    m_b2b.click(lambda: route(8), None, ALL_PAGES)
+    m_log.click(lambda: route(9), None, ALL_PAGES)
+    m_rte.click(lambda: route(10), None, ALL_PAGES)
+
+app.launch(debug=True, share=True)
